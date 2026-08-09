@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17233e">
+  <title>端玉チェッカー Ver1.0</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="session.css">
+</head>
+<body>
+  <header><h1>端玉チェッカー</h1><p>Ver1.0　端玉計算・換金率確認・台単位セッション</p></header>
+  <main>
+    <nav class="tabs" aria-label="メニュー">
+      <button class="tab active" data-page="calculatorPage">端玉計算</button>
+      <button class="tab" data-page="sessionPage">セッション</button>
+      <button class="tab" data-page="ratePage">換金率確認</button>
+      <button class="tab" data-page="shopPage">店舗管理</button>
+    </nav>
+
+    <section id="calculatorPage" class="page active">
+      <div class="card"><h2>端玉計算</h2>
+        <label>店舗</label><select id="calcShop"></select>
+        <label>遊技種別</label><div id="gameType" class="type-toggle"><button data-type="pachi" class="active">パチンコ</button><button data-type="slot">パチスロ</button></div>
+        <button id="clearBalls" class="button quiet">入力をクリア</button>
+        <label id="ballTitle">現在持玉数</label><input id="currentBalls" type="text" inputmode="numeric">
+        <label>投資金額（任意）</label><input id="investmentMoney" type="text" inputmode="numeric">
+        <label id="desiredCashLabel">希望する換金額（任意・円）</label><input id="desiredCash" type="text" inputmode="numeric">
+      </div>
+      <div id="result" class="card result"></div>
+    </section>
+
+    <section id="ratePage" class="page">
+      <div class="card"><h2>換金率確認</h2><p class="notice">実際に換金したときの玉数（枚数）・換金額・あまり玉（枚）から、換金率と最低換金額を確認します。</p>
+        <label>遊技種別</label><div id="rateType" class="type-toggle"><button data-type="pachi" class="active">パチンコ</button><button data-type="slot">パチスロ</button></div>
+        <button id="clearRate" class="button quiet">入力をクリア</button>
+        <label id="rateTotalLabel">換金前の総玉数</label><input id="rateTotal" type="text" inputmode="numeric">
+        <label>実際の換金額（円）</label><input id="rateCash" type="text" inputmode="numeric">
+        <label id="rateRemainderLabel">あまり玉数</label><input id="rateRemainder" type="text" inputmode="numeric">
+      </div>
+      <div id="rateResult" class="card result"><p class="notice">数値を入力すると、換金率を自動で確認します。</p></div>
+      <div class="card">
+        <h2>店舗管理へ反映</h2>
+        <p class="notice">3項目すべてを入力すると、確認できた換金率・最低換金額を店舗設定へ反映できます。</p>
+        <label>反映先の店舗</label>
+        <select id="reflectShopSelect"><option value="__new__">＋ 新規店舗として登録</option></select>
+        <input id="reflectShopName" type="text" placeholder="新しい店舗名" style="margin-top:8px">
+        <button id="reflectToShop" class="button" disabled>店舗管理に反映</button>
+      </div>
+    </section>
+
+    <section id="sessionPage" class="page">
+      <div class="card"><h2>台単位セッション</h2><button id="clearHistory" class="button quiet">パチンコ・パチスロの履歴を一括削除</button><p class="notice">同一店舗内で持玉・持枚を移動した場合に使います。現金投資で始める台には使用しません。</p>
+        <label>店舗</label><select id="sessionShop"></select>
+        <label>遊技種別</label><div id="sessionType" class="type-toggle"><button data-type="pachi" class="active">パチンコ</button><button data-type="slot">パチスロ</button></div>
+        <button id="clearSession" class="button quiet">入力をクリア</button>
+        <label id="sessionStartLabel">開始持玉数</label><input id="sessionStart" type="text" inputmode="numeric">
+        <label id="sessionUsedLabel">使用後の持玉数</label><input id="sessionUsed" type="text" inputmode="numeric">
+        <p id="sessionUsedInfo" class="notice"></p>
+        <label id="sessionEndLabel">終了持玉数</label><input id="sessionEnd" type="text" inputmode="numeric">
+        <button id="handoffSession" class="button secondary">保存して次の台へ引継ぐ</button>
+      </div>
+      <div id="sessionPreview" class="card result"></div>
+      <div class="card"><h2 id="historyTitle">パチンコ履歴</h2><div id="sessionHistory"></div></div>
+    </section>
+
+    <section id="shopPage" class="page">
+      <div class="card"><h2>店舗を登録</h2>
+        <p class="notice">必須は店舗名と、パチンコ・パチスロどちらか一方の設定です。片方が未判明の場合は空欄のままで登録できます。</p>
+        <label>店舗名</label><input id="shopName">
+        <h3>パチンコ設定</h3><div class="grid2"><div><label>100円あたりの玉数</label><input id="pachiPer100" type="text" inputmode="decimal" value="27.5"></div><div><label>最低換金額（円）</label><input id="pachiUnit" type="text" inputmode="numeric" value="200"></div></div>
+        <h3>パチスロ設定</h3><div class="grid2"><div><label>100円あたりの枚数</label><input id="slotPer100" type="text" inputmode="decimal" value="5.5"></div><div><label>最低換金額（円）</label><input id="slotUnit" type="text" inputmode="numeric" value="200"></div></div>
+        <button id="addShop" class="button">店舗を保存</button>
+      </div>
+      <div class="card"><h2>登録済み店舗</h2><p class="notice">⠿を押したまま上下にドラッグすると並び替えできます。</p><div id="shopList"></div></div>
+      <div class="card"><h2>データのバックアップ</h2><p class="notice">店舗情報をファイルに書き出せます。iPhoneの「Webサイトデータを消去」などでアプリのデータが消えてしまった場合、このファイルから復元できます。定期的なバックアップをおすすめします。</p>
+        <button id="backupData" class="button secondary">データをバックアップ</button>
+        <button id="restoreData" class="button quiet">データを復元</button>
+        <input id="restoreFile" type="file" accept="application/json" style="display:none">
+        <p id="backupStatus" class="notice"></p>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
