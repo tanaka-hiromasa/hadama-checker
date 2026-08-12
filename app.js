@@ -14,6 +14,7 @@ let calcType = "pachi";
 let rateType = "pachi";
 let sessionType = "pachi";
 const drafts = { pachi: { start: "", used: "", end: "" }, slot: { start: "", used: "", end: "" } };
+const calcDrafts = { pachi: { balls: "", investment: "", desired: "" }, slot: { balls: "", investment: "", desired: "" } };
 const rateDrafts = JSON.parse(localStorage.getItem(rateDraftKey) || "null") || { pachi: { total: "", cash: "", remainder: "" }, slot: { total: "", cash: "", remainder: "" } };
 
 const unitName = type => type === "pachi" ? "玉" : "枚";
@@ -133,6 +134,8 @@ function calculate() {
 }
 function captureDraft() { drafts[sessionType] = { start: $("sessionStart").value, used: $("sessionUsed").value, end: $("sessionEnd").value }; }
 function loadDraft() { const draft = drafts[sessionType]; $("sessionStart").value = draft.start; $("sessionUsed").value = draft.used; $("sessionEnd").value = draft.end; }
+function captureCalcDraft() { calcDrafts[calcType] = { balls: $("currentBalls").value, investment: $("investmentMoney").value, desired: $("desiredCash").value }; }
+function loadCalcDraft() { const draft = calcDrafts[calcType]; $("currentBalls").value = draft.balls; $("investmentMoney").value = draft.investment; $("desiredCash").value = draft.desired; }
 function captureRateDraft() { rateDrafts[rateType] = { total: $("rateTotal").value, cash: $("rateCash").value, remainder: $("rateRemainder").value }; localStorage.setItem(rateDraftKey, JSON.stringify(rateDrafts)); }
 function loadRateDraft() { const draft = rateDrafts[rateType]; $("rateTotal").value = draft.total; $("rateCash").value = draft.cash; $("rateRemainder").value = draft.remainder; }
 function sessionValues() {
@@ -195,19 +198,20 @@ function renderShops() {
   $("shopList").innerHTML = shops.length ? shops.map(shop => {
     const pachiText = shop.pachiPer100 > 0 ? `100円 ${shop.pachiPer100}玉 ／ 最低 ${shop.pachiUnit}円` : "未登録";
     const slotText = shop.slotPer100 > 0 ? `100円 ${shop.slotPer100}枚 ／ 最低 ${shop.slotUnit}円` : "未登録";
-    return `<div class="shopItem" data-shop-id="${shop.id}"><span class="drag-handle" data-drag="${shop.id}">⠿</span><div class="shopItemBody"><b>${escapeHtml(shop.name)}</b><div class="history-meta">パチンコ：${pachiText}<br>パチスロ：${slotText}</div><button class="small-button" data-delete-shop="${shop.id}">削除</button></div></div>`;
+    return `<div class="shopItem" data-shop-id="${shop.id}"><span class="drag-handle" data-drag="${shop.id}">⠿</span><div class="shopItemBody"><b>${escapeHtml(shop.name)}</b><div class="history-meta">パチンコ：${pachiText}<br>パチスロ：${slotText}</div><button class="small-button" data-edit-shop="${shop.id}" style="background:#e8eff8;color:#285285">編集</button><button class="small-button" data-delete-shop="${shop.id}">削除</button></div></div>`;
   }).join("") : '<div class="empty">店舗が未登録です。上のフォームから登録してください。</div>';
 }
 
 document.querySelectorAll(".tab").forEach(button => button.onclick = () => { document.querySelectorAll(".tab,.page").forEach(el => el.classList.remove("active")); button.classList.add("active"); $(button.dataset.page).classList.add("active"); });
-document.querySelectorAll("#gameType button").forEach(button => button.onclick = () => { calcType = button.dataset.type; document.querySelectorAll("#gameType button").forEach(b => b.classList.toggle("active", b === button)); updateLabels(); calculate(); });
+document.querySelectorAll("#gameType button").forEach(button => button.onclick = () => { captureCalcDraft(); calcType = button.dataset.type; document.querySelectorAll("#gameType button").forEach(b => b.classList.toggle("active", b === button)); loadCalcDraft(); updateLabels(); calculate(); });
 document.querySelectorAll("#rateType button").forEach(button => button.onclick = () => { captureRateDraft(); rateType = button.dataset.type; document.querySelectorAll("#rateType button").forEach(b => b.classList.toggle("active", b === button)); loadRateDraft(); updateLabels(); calculateRate(); });
 document.querySelectorAll("#sessionType button").forEach(button => button.onclick = () => { captureDraft(); sessionType = button.dataset.type; document.querySelectorAll("#sessionType button").forEach(b => b.classList.toggle("active", b === button)); loadDraft(); updateLabels(); updateUsedInfo(); previewSession(); renderSessions(); });
 document.querySelectorAll('input[inputmode="numeric"], input[inputmode="decimal"]').forEach(input => input.addEventListener("input", () => formatNumericInput(input)));
-["currentBalls", "investmentMoney", "desiredCash", "calcShop"].forEach(id => $(id).addEventListener("input", calculate)); $("calcShop").addEventListener("change", calculate);
+["currentBalls", "investmentMoney", "desiredCash"].forEach(id => $(id).addEventListener("input", () => { captureCalcDraft(); calculate(); }));
+$("calcShop").addEventListener("input", calculate); $("calcShop").addEventListener("change", calculate);
 ["rateTotal", "rateCash", "rateRemainder"].forEach(id => $(id).addEventListener("input", () => { captureRateDraft(); calculateRate(); }));
 ["sessionShop", "sessionStart", "sessionUsed", "sessionEnd"].forEach(id => $(id).addEventListener("input", () => { captureDraft(); updateUsedInfo(); previewSession(); })); $("sessionShop").addEventListener("change", previewSession);
-$("clearBalls").onclick = () => { $("currentBalls").value = ""; $("desiredCash").value = ""; calculate(); };
+$("clearBalls").onclick = () => { $("currentBalls").value = ""; $("investmentMoney").value = ""; $("desiredCash").value = ""; captureCalcDraft(); calculate(); };
 $("clearRate").onclick = () => { rateDrafts[rateType] = { total: "", cash: "", remainder: "" }; localStorage.setItem(rateDraftKey, JSON.stringify(rateDrafts)); loadRateDraft(); calculateRate(); };
 $("handoffSession").onclick = handoffSession;
 $("clearSession").onclick = () => { drafts[sessionType] = { start: "", used: "", end: "" }; loadDraft(); updateUsedInfo(); previewSession(); };
@@ -215,16 +219,57 @@ $("clearHistory").onclick = () => { if (sessions.length && confirm("パチンコ
 $("sessionHistory").onclick = event => { const index = event.target.dataset.deleteSession; if (index === undefined) return; if (confirm("この履歴を削除しますか？")) { sessions.splice(Number(index), 1); saveSessions(); renderSessions(); } };
 $("reflectShopSelect").addEventListener("change", () => { $("reflectShopName").style.display = $("reflectShopSelect").value === "__new__" ? "" : "none"; });
 $("reflectToShop").onclick = reflectToShop;
+let editingShopId = null;
+function resetShopForm() {
+  editingShopId = null;
+  $("shopName").value = "";
+  $("pachiPer100").value = "27.5"; $("pachiUnit").value = "200";
+  $("slotPer100").value = "5.5"; $("slotUnit").value = "200";
+  $("addShop").textContent = "店舗を保存";
+  $("cancelEditShop").style.display = "none";
+}
+function startEditShop(id) {
+  const shop = shops.find(item => String(item.id) === id);
+  if (!shop) return;
+  editingShopId = shop.id;
+  $("shopName").value = shop.name;
+  $("pachiPer100").value = shop.pachiPer100 > 0 ? shop.pachiPer100 : "";
+  $("pachiUnit").value = shop.pachiPer100 > 0 ? shop.pachiUnit : "";
+  $("slotPer100").value = shop.slotPer100 > 0 ? shop.slotPer100 : "";
+  $("slotUnit").value = shop.slotPer100 > 0 ? shop.slotUnit : "";
+  $("addShop").textContent = "店舗を更新";
+  $("cancelEditShop").style.display = "";
+  $("shopName").scrollIntoView({ behavior: "smooth", block: "center" });
+}
 $("addShop").onclick = () => {
   const name = $("shopName").value.trim();
   const values = [number("pachiPer100"), number("pachiUnit"), number("slotPer100"), number("slotUnit")];
   const pachiValid = values[0] > 0 && values[1] > 0;
   const slotValid = values[2] > 0 && values[3] > 0;
   if (!name || (!pachiValid && !slotValid)) { alert("店舗名と、パチンコ・パチスロどちらか一方の換金設定を入力してください。"); return; }
-  shops.push({ id: Date.now(), name, pachiPer100: pachiValid ? values[0] : 0, pachiUnit: pachiValid ? values[1] : 0, slotPer100: slotValid ? values[2] : 0, slotUnit: slotValid ? values[3] : 0 });
-  saveShops(); updateShopSelects(); renderShops(); refreshReflectShopSelect(); calculate(); previewSession(); $("shopName").value = "";
+  const fields = { name, pachiPer100: pachiValid ? values[0] : 0, pachiUnit: pachiValid ? values[1] : 0, slotPer100: slotValid ? values[2] : 0, slotUnit: slotValid ? values[3] : 0 };
+  if (editingShopId !== null) {
+    const shop = shops.find(item => String(item.id) === String(editingShopId));
+    if (shop) Object.assign(shop, fields);
+  } else {
+    const duplicate = shops.find(item => item.name === name);
+    if (duplicate) { Object.assign(duplicate, fields); }
+    else shops.push({ id: Date.now(), ...fields });
+  }
+  saveShops(); updateShopSelects(); renderShops(); refreshReflectShopSelect(); calculate(); previewSession(); resetShopForm();
 };
-$("shopList").onclick = event => { const id = event.target.dataset.deleteShop; const shop = shops.find(item => String(item.id) === id); if (shop && confirm(`「${shop.name}」を削除しますか？`)) { shops = shops.filter(item => String(item.id) !== id); saveShops(); updateShopSelects(); renderShops(); refreshReflectShopSelect(); calculate(); previewSession(); } };
+$("cancelEditShop").onclick = resetShopForm;
+$("shopList").onclick = event => {
+  const editId = event.target.dataset.editShop;
+  if (editId) { startEditShop(editId); return; }
+  const id = event.target.dataset.deleteShop;
+  const shop = shops.find(item => String(item.id) === id);
+  if (shop && confirm(`「${shop.name}」を削除しますか？`)) {
+    shops = shops.filter(item => String(item.id) !== id);
+    if (String(editingShopId) === id) resetShopForm();
+    saveShops(); updateShopSelects(); renderShops(); refreshReflectShopSelect(); calculate(); previewSession();
+  }
+};
 
 let dragState = null;
 $("shopList").addEventListener("pointerdown", event => {

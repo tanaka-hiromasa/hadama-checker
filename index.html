@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#17233e">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" href="icon-192.png">
   <title>端玉チェッカー Ver1.0</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="session.css">
@@ -71,6 +73,7 @@
         <h3>パチンコ設定</h3><div class="grid2"><div><label>100円あたりの玉数</label><input id="pachiPer100" type="text" inputmode="decimal" value="27.5"></div><div><label>最低換金額（円）</label><input id="pachiUnit" type="text" inputmode="numeric" value="200"></div></div>
         <h3>パチスロ設定</h3><div class="grid2"><div><label>100円あたりの枚数</label><input id="slotPer100" type="text" inputmode="decimal" value="5.5"></div><div><label>最低換金額（円）</label><input id="slotUnit" type="text" inputmode="numeric" value="200"></div></div>
         <button id="addShop" class="button">店舗を保存</button>
+        <button id="cancelEditShop" class="button quiet" style="display:none">編集をキャンセル</button>
       </div>
       <div class="card"><h2>登録済み店舗</h2><p class="notice">⠿を押したまま上下にドラッグすると並び替えできます。</p><div id="shopList"></div></div>
       <div class="card"><h2>データのバックアップ</h2><p class="notice">店舗情報をファイルに書き出せます。iPhoneの「Webサイトデータを消去」などでアプリのデータが消えてしまった場合、このファイルから復元できます。定期的なバックアップをおすすめします。</p>
