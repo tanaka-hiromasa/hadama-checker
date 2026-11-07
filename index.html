@@ -17,6 +17,7 @@
       <button class="tab active" data-page="calculatorPage">端玉計算</button>
       <button class="tab" data-page="sessionPage">セッション</button>
       <button class="tab" data-page="ratePage">換金率確認</button>
+      <button class="tab" data-page="kakuhenPage">確変記録</button>
       <button class="tab" data-page="shopPage">店舗管理</button>
     </nav>
 
@@ -64,6 +65,20 @@
       </div>
       <div id="sessionPreview" class="card result"></div>
       <div class="card"><h2 id="historyTitle">パチンコ履歴</h2><div id="sessionHistory"></div></div>
+    </section>
+
+    <section id="kakuhenPage" class="page">
+      <div class="card"><h2>確変記録</h2>
+        <div class="machine-picker"><select id="machineSelect" aria-label="機種を選択"></select><button id="toggleMachineForm" class="mini-button">＋ 機種登録</button></div>
+        <div id="machineForm" style="display:none">
+          <label>機種名</label><input id="machineName" type="text" placeholder="例：〇〇〇〇">
+          <label>「その他」の名称（任意）</label><input id="machineOther" type="text" placeholder="その他" maxlength="12">
+          <div class="form-actions"><button id="addMachine" class="button">登録</button><button id="cancelMachine" class="button secondary">閉じる</button></div>
+        </div>
+        <div id="kakuhenCounters" style="display:none"></div>
+        <p id="kakuhenStatus" class="notice"></p>
+      </div>
+      <div id="kakuhenSummaryCard" class="card" style="display:none"><h2>機種ごとの累計</h2><div id="kakuhenHistory"></div></div>
     </section>
 
     <section id="shopPage" class="page">

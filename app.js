@@ -358,4 +358,168 @@ $("backupData").onclick = backupData;
 $("restoreData").onclick = () => $("restoreFile").click();
 $("restoreFile").addEventListener("change", () => { const file = $("restoreFile").files[0]; if (file) restoreData(file); $("restoreFile").value = ""; });
 
+// ---- 確変記録 ----
+// 機種ごとの累計（machine.totals）を保存する。画面の回数がそのまま累計で、保存後も数字は残る。
+const machineKey = "machines-v100";
+const kakuhenKey = "kakuhen-records-v100"; // 旧形式（1回ずつの記録）。読み込み時の移行にのみ使用
+let machines = JSON.parse(localStorage.getItem(machineKey) || "[]");
+let selectedMachineId = null;
+const countDefs = [["normal", "通常当たり"], ["kakuhen", "確変当たり"], ["charge", "チャージ"], ["other", "その他"]];
+const kakuhenCounts = { normal: 0, kakuhen: 0, charge: 0, other: 0 };
+let kakuhenStatusTimer = null;
+let renamingOther = false; // 「その他」名称の編集欄を開いているか
+let otherDraft = "";       // 編集欄に入力中の文字
+const emptyTotals = () => ({ normal: 0, kakuhen: 0, charge: 0, other: 0 });
+const escapeAttr = value => escapeHtml(value).replace(/"/g, "&quot;");
+const otherLabelOf = machine => (machine && machine.otherLabel) || "その他";
+const countLabel = (key, machine) => key === "other" ? otherLabelOf(machine) : countDefs.find(def => def[0] === key)[1];
+const isChecked = (machine, key) => !machine.checks || machine.checks[key] !== false;
+const savedTotals = machine => ({ ...emptyTotals(), ...(machine.totals || {}) });
+const selectedMachine = () => machines.find(item => String(item.id) === String(selectedMachineId));
+const isKakuhenDirty = machine => countDefs.some(([key]) => kakuhenCounts[key] !== savedTotals(machine)[key]);
+function saveMachines() { localStorage.setItem(machineKey, JSON.stringify(machines)); }
+function loadKakuhenCounts(machine) { Object.assign(kakuhenCounts, machine ? savedTotals(machine) : emptyTotals()); }
+function showKakuhenStatus(text) {
+  $("kakuhenStatus").textContent = text;
+  clearTimeout(kakuhenStatusTimer);
+  if (text) kakuhenStatusTimer = setTimeout(() => { $("kakuhenStatus").textContent = ""; }, 2500);
+}
+// 旧形式の記録がある場合、累計に取り込む（totalsが未設定の機種のみ）
+(function migrateKakuhenRecords() {
+  let records = [];
+  try { records = JSON.parse(localStorage.getItem(kakuhenKey) || "[]"); } catch (error) { return; }
+  let changed = false;
+  machines.forEach(machine => {
+    if (machine.totals) return;
+    const totals = emptyTotals();
+    records.forEach(record => { if (String(record.machineId) === String(machine.id)) countDefs.forEach(([key]) => { totals[key] += Number(record[key] || 0); }); });
+    if (countDefs.some(([key]) => totals[key] > 0)) { machine.totals = totals; changed = true; }
+  });
+  if (changed) saveMachines();
+})();
+// 分母 = チェックした項目の合計 / 分子 = そのうち通常当たり以外
+function nonNormalRatio(machine, totals) {
+  let den = 0, num = 0;
+  countDefs.forEach(([key]) => { if (isChecked(machine, key)) { den += totals[key]; if (key !== "normal") num += totals[key]; } });
+  return { den, num, percent: den > 0 ? num / den * 100 : null };
+}
+const percentText = percent => percent === null ? "—" : `${Math.round(percent * 10) / 10}%`;
+function renderMachineSelect() {
+  const select = $("machineSelect");
+  select.innerHTML = `<option value="">${machines.length ? "機種を選択してください" : "機種が未登録です"}</option>` + machines.map(machine => `<option value="${machine.id}">${escapeHtml(machine.name)}</option>`).join("");
+  select.value = selectedMachine() ? String(selectedMachineId) : "";
+  select.disabled = machines.length === 0;
+}
+function renderKakuhenCounters() {
+  const machine = selectedMachine();
+  const box = $("kakuhenCounters");
+  if (!machine) { box.style.display = "none"; box.innerHTML = ""; return; }
+  const ratio = nonNormalRatio(machine, kakuhenCounts);
+  box.style.display = "";
+  box.innerHTML = `<div class="counter-head"><div class="counter-title">${escapeHtml(machine.name)}（累計）</div></div>` +
+    countDefs.map(([key]) => { const label = escapeHtml(countLabel(key, machine)); return `<div class="counter-row"><label class="counter-name"><input type="checkbox" class="counter-check" data-check="${key}" ${isChecked(machine, key) ? "checked" : ""}><span class="counter-text"><span class="counter-label">${label}</span></span></label><div class="counter-ctrl"><button class="counter-btn cnt-plus" data-count="${key}" data-delta="1" aria-label="${label}を1増やす">＋</button><span class="counter-value">${kakuhenCounts[key]}</span><button class="counter-btn cnt-minus" data-count="${key}" data-delta="-1" aria-label="${label}を1減らす">−</button></div></div>`; }).join("") +
+    `<div class="ratio-box"><div class="ratio-cell"><div class="result-title">累計大当たり回数</div><div class="ratio-num">${ratio.den}</div></div><div class="ratio-cell"><div class="result-title">通常当たり以外の割合</div><div class="ratio-num">${percentText(ratio.percent)}</div></div></div>` +
+    `<button id="saveKakuhen" class="button" ${isKakuhenDirty(machine) ? "" : "disabled"}>保存</button>` +
+    `<div class="counter-actions"><button class="mini-button" data-rename-toggle>「その他」名称変更</button><button class="small-button" id="deleteMachine">この機種を削除</button></div>` +
+    (renamingOther ? `<div class="rename-wrap"><div class="notice">「その他」の表示名を入力（空欄で「その他」に戻ります）</div><div class="rename-box"><input id="otherLabelInput" type="text" maxlength="12" placeholder="その他" value="${escapeAttr(otherDraft)}"><button class="mini-button" data-rename-ok>決定</button><button class="mini-button" data-rename-cancel>キャンセル</button></div></div>` : "");
+}
+function renderKakuhenSummary() {
+  $("kakuhenSummaryCard").style.display = machines.length ? "" : "none";
+  $("kakuhenHistory").innerHTML = machines.map(machine => {
+    const totals = savedTotals(machine), ratio = nonNormalRatio(machine, totals);
+    const cells = countDefs.map(([key]) => `<div class="sum-cell"><span class="sum-label">${escapeHtml(countLabel(key, machine))}</span><b class="sum-num">${totals[key]}</b></div>`).join("") +
+      `<div class="sum-cell"><span class="sum-label">累計</span><b class="sum-num">${ratio.den}</b></div><div class="sum-cell"><span class="sum-label">割合</span><b class="sum-num">${percentText(ratio.percent)}</b></div>`;
+    return `<div class="sum-item"><div class="sum-name">${escapeHtml(machine.name)}</div><div class="sum-grid">${cells}</div></div>`;
+  }).join("");
+}
+function refreshKakuhen() { renderMachineSelect(); renderKakuhenCounters(); renderKakuhenSummary(); }
+function openMachineForm(open) {
+  $("machineForm").style.display = open ? "" : "none";
+  $("toggleMachineForm").textContent = open ? "閉じる" : "＋ 機種登録";
+  if (open) $("machineName").focus(); else { $("machineName").value = ""; $("machineOther").value = ""; }
+}
+$("machineSelect").addEventListener("change", () => {
+  const nextId = $("machineSelect").value;
+  const current = selectedMachine();
+  if (current && String(current.id) !== nextId && isKakuhenDirty(current) && !confirm("保存していない変更があります。破棄して機種を切り替えますか？")) { $("machineSelect").value = String(current.id); return; }
+  selectedMachineId = nextId || null;
+  renamingOther = false;
+  loadKakuhenCounts(selectedMachine());
+  if ($("machineForm").style.display !== "none") openMachineForm(false);
+  renderKakuhenCounters();
+});
+function startMachineForm() {
+  const current = selectedMachine();
+  if (current && isKakuhenDirty(current) && !confirm("保存していない変更があります。破棄して機種登録に進みますか？")) return;
+  selectedMachineId = null; renamingOther = false; loadKakuhenCounts(null);
+  renderMachineSelect(); renderKakuhenCounters();
+  openMachineForm(true);
+}
+$("toggleMachineForm").onclick = () => { if ($("machineForm").style.display === "none") startMachineForm(); else openMachineForm(false); };
+$("cancelMachine").onclick = () => openMachineForm(false);
+$("addMachine").onclick = () => {
+  const name = $("machineName").value.trim();
+  if (!name) return;
+  if (machines.some(machine => machine.name === name)) { showKakuhenStatus("同じ機種名がすでに登録されています"); return; }
+  const machine = { id: Date.now(), name, checks: { charge: false, other: false } }; // 新規登録時はチャージ・その他のチェックを外しておく
+  const other = $("machineOther").value.trim();
+  if (other) machine.otherLabel = other;
+  machines.push(machine);
+  saveMachines();
+  const current = selectedMachine();
+  if (!current || !isKakuhenDirty(current)) { selectedMachineId = machine.id; renamingOther = false; loadKakuhenCounts(machine); }
+  openMachineForm(false);
+  refreshKakuhen();
+  showKakuhenStatus("機種を登録しました");
+};
+$("kakuhenCounters").addEventListener("click", event => {
+  const machine = selectedMachine();
+  if (!machine) return;
+  const countButton = event.target.closest("[data-count]");
+  if (countButton) {
+    const key = countButton.dataset.count;
+    kakuhenCounts[key] = Math.max(0, kakuhenCounts[key] + Number(countButton.dataset.delta));
+    renderKakuhenCounters();
+    return;
+  }
+  if (event.target.closest("[data-rename-toggle]")) {
+    renamingOther = !renamingOther; otherDraft = machine.otherLabel || "";
+    renderKakuhenCounters();
+    if (renamingOther && $("otherLabelInput")) $("otherLabelInput").focus();
+    return;
+  }
+  if (event.target.closest("[data-rename-cancel]")) { renamingOther = false; renderKakuhenCounters(); return; }
+  if (event.target.closest("[data-rename-ok]")) {
+    const label = otherDraft.trim();
+    if (label) machine.otherLabel = label; else delete machine.otherLabel;
+    renamingOther = false;
+    saveMachines(); renderKakuhenCounters(); renderKakuhenSummary();
+    return;
+  }
+  if (event.target.id === "saveKakuhen") {
+    if (!isKakuhenDirty(machine)) return;
+    machine.totals = { ...kakuhenCounts };
+    machine.updatedAt = new Date().toLocaleString("ja-JP");
+    saveMachines(); renderKakuhenCounters(); renderKakuhenSummary();
+    showKakuhenStatus("保存しました");
+    return;
+  }
+  if (event.target.id === "deleteMachine") {
+    if (!confirm(`「${machine.name}」を削除しますか？（累計の記録も削除されます）`)) return;
+    machines = machines.filter(item => item.id !== machine.id);
+    selectedMachineId = null; renamingOther = false; loadKakuhenCounts(null);
+    saveMachines(); refreshKakuhen();
+    showKakuhenStatus("削除しました");
+  }
+});
+$("kakuhenCounters").addEventListener("input", event => { if (event.target.id === "otherLabelInput") otherDraft = event.target.value; });
+$("kakuhenCounters").addEventListener("change", event => {
+  const key = event.target.dataset.check;
+  const machine = selectedMachine();
+  if (!key || !machine) return;
+  machine.checks = { ...(machine.checks || {}), [key]: event.target.checked };
+  saveMachines(); renderKakuhenCounters(); renderKakuhenSummary();
+});
+
+refreshKakuhen();
 updateShopSelects(); loadRateDraft(); updateLabels(); renderShops(); renderSessions(); calculate(); calculateRate(); updateUsedInfo(); previewSession(); refreshReflectShopSelect();
